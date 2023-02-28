@@ -1,0 +1,121 @@
+stages:
+  - build
+  - deploy
+  - stop
+
+variables:
+  APP_NAME: devops-javaee
+
+mvn-build:
+  services:
+    - name: postgres
+      variables:
+        POSTGRES_HOST_AUTH_METHOD: trust
+  image: maven:3-eclipse-temurin-19
+  stage: build
+  cache:
+    - key: maven
+      paths:
+        - .m2/repository
+  variables:
+    MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+    TEST_JDBC_URL: jdbc:postgresql://postgres:5432/postgres
+  script:
+    - mvn $MAVEN_OPTS
+      -Djib.to.image=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+      -Djib.to.auth.username=$CI_REGISTRY_USER
+      -Djib.to.auth.password=$CI_REGISTRY_PASSWORD
+      install
+
+deploy-review:
+  image: dtzar/helm-kubectl:3.10
+  stage: deploy
+  only:
+    - /^test\//
+  needs: [ mvn-build ]
+  script:
+    - helm template src/main/kubernetes/
+      --set image=$CI_REGISTRY_IMAGE
+      --set imageTag=$CI_COMMIT_SHORT_SHA
+      --set ingressClassName=azure-application-gateway
+      --set suffix=-$CI_ENVIRONMENT_SLUG
+      --set domain=$TEST_DOMAIN
+      | kubectl
+      --namespace $TEST_KUBECTL_NAMESPACE
+      --token $TEST_KUBECTL_TOKEN
+      --server $TEST_KUBECTL_SERVER
+      --insecure-skip-tls-verify
+      apply -f -
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    url: http://$APP_NAME-$CI_ENVIRONMENT_SLUG.$TEST_DOMAIN
+    on_stop: stop-review-app
+    auto_stop_in: 1 day
+
+stop-review-app:
+  when: manual
+  image: dtzar/helm-kubectl:3.10
+  stage: stop
+  only:
+    - /^test\//
+  script:
+    - helm template src/main/kubernetes/
+      --set image=$CI_REGISTRY_IMAGE
+      --set imageTag=$CI_COMMIT_SHORT_SHA
+      --set ingressClassName=azure-application-gateway
+      --set suffix=-$CI_ENVIRONMENT_SLUG
+      --set domain=$TEST_DOMAIN
+      | kubectl
+      --namespace $TEST_KUBECTL_NAMESPACE
+      --token $TEST_KUBECTL_TOKEN
+      --server $TEST_KUBECTL_SERVER
+      --insecure-skip-tls-verify
+      delete -f -
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    action: stop
+
+deploy-test:
+  image: dtzar/helm-kubectl:3.10
+  stage: deploy
+  only:
+    - main
+  needs: [ mvn-build ]
+  script:
+    - helm template src/main/kubernetes/
+      --set image=$CI_REGISTRY_IMAGE
+      --set imageTag=$CI_COMMIT_SHORT_SHA
+      --set ingressClassName=azure-application-gateway
+      --set domain=$TEST_DOMAIN
+      | kubectl
+      --namespace $TEST_KUBECTL_NAMESPACE
+      --token $TEST_KUBECTL_TOKEN
+      --server $TEST_KUBECTL_SERVER
+      --insecure-skip-tls-verify
+      apply -f -
+  environment:
+    name: test
+    url: http://$APP_NAME.$TEST_DOMAIN
+
+
+deploy-prod:
+  image: dtzar/helm-kubectl:3.10
+  stage: deploy
+  only:
+    - production
+  needs: [ mvn-build ]
+  script:
+    - helm template src/main/kubernetes/
+      --set image=$CI_REGISTRY_IMAGE
+      --set imageTag=$CI_COMMIT_SHORT_SHA
+      --set ingressClassName=azure-application-gateway
+      --set domain=$PROD_DOMAIN
+      | kubectl
+      --namespace $PROD_KUBECTL_NAMESPACE
+      --token $PROD_KUBECTL_TOKEN
+      --server $PROD_KUBECTL_SERVER
+      --insecure-skip-tls-verify
+      apply -f -
+  environment:
+    name: production
+    url: http://$APP_NAME.$PROD_DOMAIN

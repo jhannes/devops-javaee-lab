@@ -1,0 +1,7 @@
+/.parcel-cache/
+/.idea/
+/node/
+/gen/
+/node_modules/
+/target/
+*.iml

@@ -1,0 +1,24 @@
+{
+  "scripts": {
+    "start": "parcel watch src/main/frontend/index.html --dist-dir ./target/classes/web",
+    "build:parcel": "parcel build src/main/frontend/index.html --dist-dir ./target/classes/web",
+    "build:tsc": "tsc --noEmit --project ./",
+    "build:check-format": "prettier --check src/main/frontend",
+    "build": "npm run build:tsc && npm run build:check-format && npm run build:parcel",
+    "prettier": "prettier --write src/main/frontend",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "@types/react-dom": "^18.0.11",
+    "@types/uuid": "^9.0.1",
+    "parcel": "^2.8.3",
+    "prettier": "^2.8.4",
+    "process": "^0.11.10",
+    "typescript": "^4.9.5"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "uuid": "^9.0.0"
+  }
+}
