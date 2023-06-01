@@ -85,7 +85,7 @@ function CreateTodoItem() {
 export function Application() {
   return (
     <>
-      <h1>Completed Todo Application</h1>
+      <h1>Todo Application</h1>
       <ListTodoItems />
 
       <h1>Make new todo</h1>
