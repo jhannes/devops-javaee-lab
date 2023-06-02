@@ -33,9 +33,18 @@ function ListTodoItems() {
   return (
     <>
       {values.map((t) => (
-        <div key={t.id}>{t.title}</div>
+        <SingleTodoItem key={t.id} item={t} />
       ))}
     </>
+  );
+}
+
+function SingleTodoItem({ item }: { item: TodoItemDto }) {
+  return (
+    <div key={item.id}>
+      <h2>{item.title}</h2>
+      <div>{item.description}</div>
+    </div>
   );
 }
 
